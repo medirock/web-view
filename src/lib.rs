@@ -94,6 +94,7 @@ pub struct WebViewBuilder<'a, T: 'a, I, C> {
     pub debug: bool,
     pub invoke_handler: Option<I>,
     pub user_data: Option<T>,
+    pub custom_css: Option<&'a str>,
 }
 
 impl<'a, T: 'a, I, C> Default for WebViewBuilder<'a, T, I, C>
@@ -116,6 +117,7 @@ where
             debug,
             invoke_handler: None,
             user_data: None,
+            custom_css: None,
         }
     }
 }
@@ -191,6 +193,11 @@ where
         self
     }
 
+    pub fn gtk_custom_css(mut self, css: &'a str) -> Self {
+        self.custom_css = Some(css);
+        self
+    }
+
     /// Validates provided arguments and returns a new WebView if successful.
     pub fn build(self) -> WVResult<WebView<'a, T>> {
         macro_rules! require_field {
@@ -210,6 +217,7 @@ where
         };
         let user_data = require_field!(user_data);
         let invoke_handler = require_field!(invoke_handler);
+        let custom_css = CString::new(self.custom_css.unwrap_or(""))?;
 
         WebView::new(
             &title,
@@ -220,6 +228,7 @@ where
             self.debug,
             user_data,
             invoke_handler,
+            &custom_css,
         )
     }
 
@@ -274,6 +283,7 @@ impl<'a, T> WebView<'a, T> {
         debug: bool,
         user_data: T,
         invoke_handler: I,
+        gtk_custom_css: &CStr
     ) -> WVResult<WebView<'a, T>>
     where
         I: FnMut(&mut WebView<T>, &str) -> WVResult + 'a,
@@ -296,6 +306,7 @@ impl<'a, T> WebView<'a, T> {
                 debug as _,
                 Some(ffi_invoke_handler::<T>),
                 user_data_ptr as _,
+                gtk_custom_css.as_ptr(),
             );
 
             if inner.is_null() {
